@@ -104,6 +104,61 @@
         o.stop(t + 0.14);
       }
     }
+    function say(text, pitch, rate) {  // words come from the device's own voice
+      const sp = window.speechSynthesis;
+      if (!sp || !window.SpeechSynthesisUtterance) return;
+      sp.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.pitch = pitch;
+      u.rate = rate;
+      u.volume = 1;
+      sp.speak(u);
+    }
+    function growl() {  // a low rumbly sawtooth that wobbles: grrrr
+      const t = ac.currentTime, o = ac.createOscillator(), lp = ac.createBiquadFilter(), g = ac.createGain();
+      const lfo = ac.createOscillator(), depth = ac.createGain();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(85, t);
+      o.frequency.linearRampToValueAtTime(110, t + 0.3);
+      o.frequency.linearRampToValueAtTime(75, t + 0.7);
+      lp.type = 'lowpass';
+      lp.frequency.value = 700;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.3, t + 0.05);
+      g.gain.setValueAtTime(0.3, t + 0.55);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.75);
+      lfo.frequency.value = 28;
+      depth.gain.value = 0.2;
+      lfo.connect(depth).connect(g.gain);
+      o.connect(lp).connect(g).connect(master);
+      for (const n of [o, lfo]) { n.start(t); n.stop(t + 0.8); }
+    }
+    function hiss() {
+      const t = ac.currentTime, dur = 0.8, len = Math.ceil(ac.sampleRate * dur), buf = ac.createBuffer(1, len, ac.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      const src = ac.createBufferSource(), hp = ac.createBiquadFilter(), g = ac.createGain();
+      src.buffer = buf;
+      hp.type = 'highpass';
+      hp.frequency.value = 3500;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.25, t + 0.15);
+      g.gain.setValueAtTime(0.25, t + 0.55);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      src.connect(hp).connect(g).connect(master);
+      src.start(t);
+    }
+    // What each frog says when you pick it, in COLORS order.
+    const frogVoices = [
+      () => growl(),                       // angry: grrrr
+      () => say('Huh?', 1.4, 1),           // confused
+      () => say('Yay!', 1.9, 1.1),         // happy
+      () => say('Ewww!', 1.1, 0.7),        // grossed out
+      () => [0, 0.13, 0.26].forEach((at, i) => tone(300 + i * 80, 0.1, { to: 900 + i * 150, vol: 0.25, at })),  // aqua: blub blub blub
+      () => say('Awww.', 0.7, 0.6),        // sad
+      () => hiss(),                        // dark sorcerer: hssss
+      () => say('Ooh la la!', 1.6, 0.9),   // heart eyes
+    ];
     const notes = [523, 587, 659, 698, 784, 880, 988, 1047];
     const sounds = {
       paint(i) { tone(notes[i % notes.length], 0.06, { type: 'triangle', vol: 0.12 }); },
@@ -120,6 +175,7 @@
       undone() { tone(1320, 0.1, { vol: 0.15 }); tone(880, 0.15, { vol: 0.15, at: 0.08 }); },
       pop() { tone(500, 0.08, { to: 900, vol: 0.12 }); },
       ribbit(pitch) { croak(0, pitch); },
+      frog(i) { frogVoices[i](); },
       results() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.25, { type: 'triangle', vol: 0.18, at: i * 0.09 })); },
       win() {
         [523, 523, 523, 659, 784, 659, 784, 1047].forEach((f, i) => tone(f, i === 7 ? 0.6 : 0.16, { type: 'square', vol: 0.1, at: [0, .15, .3, .45, .6, .8, .95, 1.1][i] }));
@@ -654,7 +710,7 @@
   }
 
   function pickColor(i) {
-    sfx.play('ribbit', 0.8 + i * 0.08);
+    sfx.play('frog', i);
     store.set('froggy-color', i);
     room.ref.child('players').transaction(cur => {
       if (!cur || !cur[myId]) return;
