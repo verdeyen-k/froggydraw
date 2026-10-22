@@ -32,6 +32,8 @@
     .status { width: 100%; font-size: 13px; color: var(--dim); }
     .status.ok { color: var(--frog); }
     .status.bad { color: var(--bad); }
+    .meter { width: 100%; height: 8px; border-radius: 4px; background: var(--bg); overflow: hidden; }
+    .meter div { height: 100%; width: 0; background: var(--frog); transition: width .05s; }
   </style>
 </head>
 <body>
@@ -86,19 +88,36 @@
     document.getElementById('mic-note').textContent = "This browser can't record. Try Safari on the iPhone or Chrome on the computer.";
   }
 
-  let stream = null, recording = null;
+  let stream = null, recording = null, analyser = null;
   async function mic() {
-    if (!stream) stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    if (!stream) {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      analyser = ac.createAnalyser();
+      analyser.fftSize = 1024;
+      ac.createMediaStreamSource(stream).connect(analyser);
+    }
+    if (analyser.context.state === 'suspended') analyser.context.resume();
     return stream;
   }
+  function level() {  // 0..1, how loud the microphone is right now
+    const d = new Float32Array(analyser.fftSize);
+    analyser.getFloatTimeDomainData(d);
+    let peak = 0;
+    for (const x of d) peak = Math.max(peak, Math.abs(x));
+    return peak;
+  }
+  const SILENT = 0.02;  // a recording that never got louder than this heard nothing
   const toDataURL = blob => new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob); });
 
   CLIPS.forEach((c, i) => {
     const li = document.createElement('li');
     li.innerHTML = `<img src="${frogURL(i)}" alt=""><div class="what"><b>${c.say}</b><small>${window.FROGGY_FROGS[i].name} frog${c.note ? ` · ${c.note}` : ''}</small></div>
-      <div class="btns"><button class="rec">🔴 Record</button><button class="play" disabled>▶️</button></div><div class="status"></div>`;
+      <div class="btns"><button class="rec">🔴 Record</button><button class="play" disabled>▶️</button></div>
+      <div class="meter" hidden><div></div></div><div class="status"></div>`;
     document.getElementById('list').append(li);
     const rec = li.querySelector('.rec'), play = li.querySelector('.play'), status = li.querySelector('.status');
+    const meter = li.querySelector('.meter'), bar = meter.firstChild;
     let url = null;
     const setStatus = (text, cls = '') => { status.textContent = text; status.className = 'status ' + cls; };
 
@@ -117,11 +136,24 @@
         const r = new MediaRecorder(await mic()), chunks = [];
         recording = r;
         r.owner = c.key;
+        let loudest = 0;
+        meter.hidden = false;
+        const watch = setInterval(() => {
+          const l = level();
+          loudest = Math.max(loudest, l);
+          bar.style.width = `${Math.min(100, l * 250)}%`;
+        }, 50);
         r.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
         r.onstop = async () => {
           recording = null;
+          clearInterval(watch);
+          meter.hidden = true;
           rec.classList.remove('on');
           rec.textContent = '🔴 Record again';
+          if (loudest < SILENT) {
+            setStatus("That was silent: the microphone didn't hear anything, so it wasn't saved. Check that the right microphone is on and not muted, or try the phone.", 'bad');
+            return;
+          }
           const blob = new Blob(chunks, { type: r.mimeType || 'audio/mp4' });
           url = await toDataURL(blob);
           play.disabled = false;
@@ -137,7 +169,7 @@
         r.start();
         rec.classList.add('on');
         rec.textContent = '⏹ Stop';
-        setStatus('Recording…');
+        setStatus('Recording… the green bar moves when it hears you');
         setTimeout(() => { if (recording === r) r.stop(); }, MAX_MS);
       } catch (e) {
         recording = null;
