@@ -78,7 +78,7 @@
     #play header .what small { color: var(--dim); font-weight: 400; }
     #timer { font-size: 22px; font-weight: 900; font-variant-numeric: tabular-nums; min-width: 3ch; text-align: right; }
     #timer.low { color: var(--bad); }
-    #btn-leave { padding: 6px 10px; font-size: 14px; }
+    #btn-leave, #play .sound { padding: 6px 10px; font-size: 14px; }
     #stage { flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
     #stage.wide { flex-direction: row; }
     #board { display: grid; gap: 5px; grid-template-columns: 1fr 1.8fr 1fr; grid-template-rows: 1fr 1.8fr 1fr; flex: none; }
@@ -159,6 +159,7 @@
       <button id="btn-join">Join</button>
     </div>
     <button id="btn-practice">Practice alone</button>
+    <button class="sound" title="Sound on/off"></button>
     <div id="menu-error" class="error"></div>
   </div>
   <p class="rules">2 to 8 players, each on their own device. Same color in the right spot scores a point; the wrong color in the right spot scores half.</p>
@@ -188,6 +189,7 @@
   <header>
     <div class="what" id="what"></div>
     <div id="timer"></div>
+    <button class="sound" title="Sound on/off"></button>
     <button id="btn-leave">Leave</button>
   </header>
   <div id="stage">
@@ -241,6 +243,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="pictures.js?v=3"></script>
 <script src="frogs.js?v=1"></script>
-<script src="froggy.js?v=6"></script>
+<script src="froggy.js?v=7"></script>
 </body>
 </html>

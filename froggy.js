@@ -43,6 +43,108 @@
     get(k) { try { return localStorage.getItem(k); } catch { return null; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch {} },
   };
+  // ── Sounds ───────────────────────────────────────────────────────────────
+  // Made on the fly with Web Audio, so there are no sound files. Phones only allow sound after a tap,
+  // so the first tap anywhere wakes it up.
+  const sfx = (() => {
+    let ac = null, master = null, muted = store.get('froggy-mute') === '1';
+    const last = {};
+    function ctx() {
+      if (!ac) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        ac = new AC();
+        master = ac.createGain();
+        master.gain.value = 0.6;
+        master.connect(ac.destination);
+      }
+      if (ac.state === 'suspended') ac.resume();
+      return ac;
+    }
+    // One note: frequency (sliding to `to`), length in seconds, starting `at` seconds from now.
+    function tone(freq, dur, { type = 'sine', vol = 0.2, to = null, at = 0 } = {}) {
+      const t = ac.currentTime + at, o = ac.createOscillator(), g = ac.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, t);
+      if (to) o.frequency.exponentialRampToValueAtTime(to, t + dur);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g).connect(master);
+      o.start(t);
+      o.stop(t + dur + 0.02);
+    }
+    function noise(dur, { vol = 0.15, from = 3000, to = 300, at = 0 } = {}) {
+      const t = ac.currentTime + at, len = Math.ceil(ac.sampleRate * dur), buf = ac.createBuffer(1, len, ac.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+      src.buffer = buf;
+      f.type = 'bandpass';
+      f.frequency.setValueAtTime(from, t);
+      f.frequency.exponentialRampToValueAtTime(to, t + dur);
+      g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      src.connect(f).connect(g).connect(master);
+      src.start(t);
+    }
+    function croak(at = 0, pitch = 1) {  // two buzzy throaty bursts: rib-bit
+      for (const [dt, f] of [[0, 150], [0.16, 190]]) {
+        const t = ac.currentTime + at + dt, o = ac.createOscillator(), lp = ac.createBiquadFilter(), g = ac.createGain();
+        o.type = 'sawtooth';
+        o.frequency.setValueAtTime(f * pitch, t);
+        o.frequency.linearRampToValueAtTime(f * pitch * 0.8, t + 0.11);
+        lp.type = 'lowpass';
+        lp.frequency.value = 900;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.35, t + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+        o.connect(lp).connect(g).connect(master);
+        o.start(t);
+        o.stop(t + 0.14);
+      }
+    }
+    const notes = [523, 587, 659, 698, 784, 880, 988, 1047];
+    const sounds = {
+      paint(i) { tone(notes[i % notes.length], 0.06, { type: 'triangle', vol: 0.12 }); },
+      erase() { noise(0.06, { vol: 0.12, from: 2500, to: 1200 }); },
+      fill() { noise(0.25, { vol: 0.12, from: 600, to: 3000 }); tone(300, 0.25, { to: 900, vol: 0.1 }); },
+      pick() { tone(1200, 0.03, { type: 'square', vol: 0.05 }); },
+      undo() { tone(700, 0.12, { to: 350, type: 'triangle', vol: 0.15 }); },
+      clear() { noise(0.35, { vol: 0.2, from: 4000, to: 200 }); },
+      count() { tone(660, 0.15, { type: 'square', vol: 0.12 }); },
+      go() { tone(990, 0.35, { type: 'square', vol: 0.14 }); },
+      tick() { tone(1500, 0.04, { type: 'square', vol: 0.06 }); },
+      timeup() { tone(220, 0.5, { type: 'sawtooth', vol: 0.15, to: 160 }); },
+      done() { tone(880, 0.12, { vol: 0.2 }); tone(1320, 0.25, { vol: 0.2, at: 0.1 }); },
+      undone() { tone(1320, 0.1, { vol: 0.15 }); tone(880, 0.15, { vol: 0.15, at: 0.08 }); },
+      pop() { tone(500, 0.08, { to: 900, vol: 0.12 }); },
+      ribbit(pitch) { croak(0, pitch); },
+      results() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.25, { type: 'triangle', vol: 0.18, at: i * 0.09 })); },
+      win() {
+        [523, 523, 523, 659, 784, 659, 784, 1047].forEach((f, i) => tone(f, i === 7 ? 0.6 : 0.16, { type: 'square', vol: 0.1, at: [0, .15, .3, .45, .6, .8, .95, 1.1][i] }));
+        croak(1.8);
+      },
+    };
+    return {
+      // gap: skip the sound if it played less than this many ms ago (for fast drawing)
+      play(name, arg, gap = 0) {
+        if (muted || !ctx()) return;
+        const t = performance.now();
+        if (gap && t - (last[name] || -1e9) < gap) return;
+        last[name] = t;
+        try { sounds[name](arg); } catch {}
+      },
+      wake() { if (!muted) ctx(); },
+      get muted() { return muted; },
+      toggle() { muted = !muted; store.set('froggy-mute', muted ? '1' : '0'); if (!muted) this.play('pop'); },
+    };
+  })();
+  document.addEventListener('pointerdown', () => sfx.wake(), true);
+  function markSound() { for (const b of document.querySelectorAll('.sound')) b.textContent = sfx.muted ? '🔇' : '🔊'; }
+  for (const b of document.querySelectorAll('.sound')) b.onclick = () => { sfx.toggle(); markSound(); };
+  markSound();
+
   const esc = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 
   // Each player color has its own frog face, drawn once into an image.
@@ -127,10 +229,18 @@
   }
   function line(a, b, ch) {  // every pixel between two touch points, so a fast swipe leaves no gaps
     const n = Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y));
+    let n2 = 0;
     for (let k = 0; k <= n; k++) {
       const t = n ? k / n : 0;
-      art[Math.round(a.y + (b.y - a.y) * t) * N + Math.round(a.x + (b.x - a.x) * t)] = ch;
+      const i = Math.round(a.y + (b.y - a.y) * t) * N + Math.round(a.x + (b.x - a.x) * t);
+      if (art[i] !== ch) { art[i] = ch; n2++; }
     }
+    return n2;
+  }
+  function paintSound(ch, changedCount) {
+    if (!changedCount) return;
+    if (ch === '.') sfx.play('erase', 0, 60);
+    else sfx.play('paint', Object.keys(PAL).indexOf(ch), 45);
   }
   function changed() {
     paintArt(easel, art, true);
@@ -147,15 +257,18 @@
     if (!c || !canDraw()) return;
     easel.setPointerCapture(e.pointerId);
     remember();
-    if (tool === 'fill') flood(c, paint);
-    else { stroke = { id: e.pointerId, last: c }; line(c, c, paint); }
+    if (tool === 'fill') {
+      const before = art.join('');
+      flood(c, paint);
+      if (art.join('') !== before) sfx.play('fill');
+    } else { stroke = { id: e.pointerId, last: c }; paintSound(paint, line(c, c, paint)); }
     changed();
   });
   easel.addEventListener('pointermove', e => {
     if (!stroke || e.pointerId !== stroke.id) return;
     const c = cellAt(e);
     if (!c || !canDraw()) return;
-    line(stroke.last, c, paint);
+    paintSound(paint, line(stroke.last, c, paint));
     stroke.last = c;
     changed();
   });
@@ -172,7 +285,7 @@
     b.dataset.ch = ch;
     if (ch === '.') { b.className = 'eraser'; b.textContent = '🧽'; b.title = 'Eraser'; }
     else { b.style.background = PAL[ch].hex; b.title = PAL[ch].name; }
-    b.onclick = () => { paint = ch; markTools(); };
+    b.onclick = () => { paint = ch; markTools(); sfx.play('pick'); };
     $('palette').append(b);
   }
   function markTools() {
@@ -181,22 +294,25 @@
     $('tool-fill').classList.toggle('on', tool === 'fill');
   }
   markTools();
-  $('tool-pen').onclick = () => { tool = 'pen'; markTools(); };
-  $('tool-fill').onclick = () => { tool = 'fill'; markTools(); };
+  $('tool-pen').onclick = () => { tool = 'pen'; markTools(); sfx.play('pick'); };
+  $('tool-fill').onclick = () => { tool = 'fill'; markTools(); sfx.play('pick'); };
   $('btn-undo').onclick = () => {
     if (!undo.length || !canDraw()) return;
     art = undo.pop().split('');
+    sfx.play('undo');
     changed();
   };
   $('btn-clear').onclick = () => {
     if (!canDraw() || art.every(c => c === '.')) return;
     remember();
     art = EMPTY.split('');
+    sfx.play('clear');
     changed();
   };
   $('btn-done').onclick = () => {
-    if (practice) { practice.checked = true; renderPractice(); return; }
+    if (practice) { practice.checked = true; sfx.play('results'); renderPractice(); return; }
     if (!room || !room.st || room.st.phase !== 'draw' || now() >= room.st.ends) return;
+    sfx.play(isDone() ? 'undone' : 'done');
     if (isDone()) room.ref.child(`done/${myId}`).remove();
     else room.ref.update({ [`art/${myId}`]: art.join(''), [`done/${myId}`]: true });  // together, so the host scores your last strokes
   };
@@ -500,6 +616,9 @@
 
   function renderLobby() {
     const st = room.st, players = playerList(st), host = st.host === myId;
+    const ids = players.map(p => p.id).join();
+    if (room.seen != null && ids.length > room.seen.length && $('lobby').hidden === false) sfx.play('ribbit', 1.2);
+    room.seen = ids;
     show('lobby');
     $('lobby-code').textContent = room.code;
     $('lobby-players').innerHTML = players.map(p => `<li>${frogImg(p.color)}`
@@ -535,6 +654,7 @@
   }
 
   function pickColor(i) {
+    sfx.play('ribbit', 0.8 + i * 0.08);
     store.set('froggy-color', i);
     room.ref.child('players').transaction(cur => {
       if (!cur || !cur[myId]) return;
@@ -600,6 +720,10 @@
       $('btn-leave').textContent = 'Leave';
     }
     show('play');
+    const doneNow = Object.keys(st.done || {}).filter(id => id !== myId);
+    if (st.phase === 'draw' && doneNow.some(id => !(room.doneSeen || []).includes(id))) sfx.play('pop');
+    room.doneSeen = doneNow;
+    if (results && room.resultsSound !== st.round) { room.resultsSound = st.round; sfx.play('results'); }
     const pic = currentPic();
     $('what').innerHTML = `Round ${st.round} of ${st.order.length}${st.mix ? ' 🌈' : ''} <small>· ${pic ? esc(pic.name) : 'get ready'}</small>`;
     $('desk').hidden = results;
@@ -625,6 +749,7 @@
 
   function renderOver() {
     const st = room.st, players = playerList(st).sort((a, b) => (b.score || 0) - (a.score || 0));
+    if ($('over').hidden) sfx.play('win');
     show('over');
     const top = players[0].score || 0, winners = players.filter(p => (p.score || 0) === top);
     $('over-frogs').innerHTML = winners.map(p => frogImg(p.color, '')).join('');
@@ -664,14 +789,19 @@
     const t = now(), draw = st.phase === 'draw' && st.round === room.round;
     const waiting = draw && t < st.starts;
     $('countdown').hidden = !waiting;
-    if (waiting) $('countdown').innerHTML = `${Math.ceil((st.starts - t) / 1000)}<small>Round ${st.round}</small>`;
+    if (waiting) {
+      const n = Math.ceil((st.starts - t) / 1000);
+      $('countdown').innerHTML = `${n}<small>Round ${st.round}</small>`;
+      if (room.counted !== `${st.round}:${n}`) { room.counted = `${st.round}:${n}`; sfx.play('count'); }
+    } else if (draw && room.went !== st.round && t < st.ends) { room.went = st.round; sfx.play('go'); }
     if (draw && !waiting && board.querySelector('.target .label').textContent === '?') renderPlay();  // reveal the picture
     const left = draw ? Math.max(0, Math.ceil((st.ends - t) / 1000)) : 0;
     $('timer').textContent = draw ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : '';
     $('timer').classList.toggle('low', draw && left <= 10);
+    if (draw && !waiting && left > 0 && left <= 5 && room.ticked !== `${st.round}:${left}`) { room.ticked = `${st.round}:${left}`; sfx.play('tick'); }
     easel.style.opacity = draw && !canDraw() ? 0.6 : 1;
     if (!draw) return;
-    if (t >= st.ends && room.flushed !== st.round) { room.flushed = st.round; sendArt(); }
+    if (t >= st.ends && room.flushed !== st.round) { room.flushed = st.round; sendArt(); sfx.play('timeup'); }
     if (st.host === myId && room.ending !== st.round) {
       const players = playerList(st);
       if (t >= st.ends + GRACE || players.every(p => st.done && st.done[p.id])) endRound();

@@ -23,6 +23,8 @@ Pac-Man, Pac-Man ghosts, cactus, spring tree, fall tree, winter tree, dog, cat, 
 - Tools: ✏️ pen (tap or drag), 🪣 fill, 🧽 eraser, ↩️ undo, 🗑️ clear. Press and hold the picture in the middle to see it bigger.
 - Tap ✅ Done when you're finished. The round ends when everyone is done or the time runs out.
 
+Sound effects are made in the browser (no sound files); 🔊 on the menu or during a round turns them off.
+
 The host's device keeps the time and does the scoring, so the host should keep the game open. If the host leaves, the room closes.
 
 ## Files
