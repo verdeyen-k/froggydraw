@@ -163,9 +163,23 @@
       src.connect(hp).connect(g).connect(master);
       src.start(t);
     }
+    // Recorded sounds in sounds/, loaded the first time they're needed. `fallback` plays if one can't load.
+    const clips = {};
+    function clip(name, fallback) {
+      if (!clips[name]) {
+        clips[name] = fetch(`sounds/${name}.wav`).then(r => r.arrayBuffer())
+          .then(b => new Promise((res, rej) => ac.decodeAudioData(b, res, rej)));
+      }
+      clips[name].then(buf => {
+        const src = ac.createBufferSource();
+        src.buffer = buf;
+        src.connect(master);
+        src.start();
+      }).catch(() => { delete clips[name]; if (fallback) fallback(); });
+    }
     // What each frog says when you pick it, in COLORS order.
     const frogVoices = [
-      () => growl(),                       // angry: grrrr
+      () => clip('grrr', growl),           // angry: grrrr
       () => say('Huh?', 1.1, 1),           // confused
       () => say('Yay!', 1.2, 1),           // happy
       () => say('Ewww!', 1, 0.9),          // grossed out
