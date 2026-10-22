@@ -148,8 +148,23 @@
       o.connect(lp).connect(g).connect(master);
       for (const n of [o, lfo]) { n.start(t); n.stop(t + 0.8); }
     }
-    function kch() {  // the sorcerer's sound: a sharp "k" crack, then a long "chhhhh" hiss that fades away
-      const t = ac.currentTime, len = Math.ceil(ac.sampleRate * 2), buf = ac.createBuffer(1, len, ac.sampleRate);
+    function hiss(at = 0, dur = 0.8) {  // a snake-like "hssss" that swells up
+      const t = ac.currentTime + at, len = Math.ceil(ac.sampleRate * dur), buf = ac.createBuffer(1, len, ac.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      const src = ac.createBufferSource(), hp = ac.createBiquadFilter(), g = ac.createGain();
+      src.buffer = buf;
+      hp.type = 'highpass';
+      hp.frequency.value = 3500;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.08, t + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.35, t + dur * 0.9);
+      g.gain.exponentialRampToValueAtTime(0.05, t + dur);
+      src.connect(hp).connect(g).connect(master);
+      src.start(t);
+    }
+    function kch(at = 0) {  // a sharp "k" crack, then a long "chhhhh" that fades away
+      const t = ac.currentTime + at, len = Math.ceil(ac.sampleRate * 2), buf = ac.createBuffer(1, len, ac.sampleRate);
       const d = buf.getChannelData(0);
       for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
       const burst = (at, dur, hold, from, to, q, vol) => {
@@ -191,7 +206,7 @@
       () => say('Ewww!', 1, 0.9),          // grossed out
       () => [0, 0.13, 0.26].forEach((at, i) => tone(300 + i * 80, 0.1, { to: 900 + i * 150, vol: 0.25, at })),  // aqua: blub blub blub
       () => say('Awww...', 0.9, 0.85),     // sad
-      () => kch(),                         // dark sorcerer: kch!
+      () => { hiss(0, 0.8); kch(0.8); },    // dark sorcerer: hssss... KCHHHH
       () => say('Ooh la la!', 1.1, 0.95),  // heart eyes
     ];
     const notes = [523, 587, 659, 698, 784, 880, 988, 1047];
