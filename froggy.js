@@ -18,7 +18,7 @@
 
   // Bump with the ?v= on the scripts in index.html whenever what goes in the room changes.
   // Devices on different versions can't play together, and phones can hang on to an old copy of the page.
-  const VERSION = 2;
+  const VERSION = 3;
   const OUTDATED = 'That room is using a different version of Froggy Draw. Everyone needs to refresh the page.';
   const ROOMS = 'froggydraw/rooms';
 
@@ -211,11 +211,30 @@
   window.addEventListener('pointercancel', unzoom);
 
   function currentPic() {
-    if (practice) return PICS[practice.pic];
+    if (practice) return withMix(PICS[practice.pic], practice.mix);
     const st = room && room.st;
     if (!st || st.pic == null || (st.phase === 'draw' && now() < st.starts)) return null;
-    return PICS[st.pic];
+    return withMix(PICS[st.pic], st.mix);
   }
+
+  // Color Craze: every color in the picture swaps for a different one (the same swap everywhere in it).
+  // mix[i] is the color that palette color i turns into.
+  const KEYS = Object.keys(PAL);
+  function crazeMix(pic) {
+    const used = new Set(pic.art.replace(/\./g, ''));
+    let mix;
+    for (let tries = 0; tries < 100; tries++) {
+      mix = [...KEYS];
+      for (let i = mix.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [mix[i], mix[j]] = [mix[j], mix[i]]; }
+      if (KEYS.every((k, i) => !used.has(k) || mix[i] !== k)) break;
+    }
+    return mix.join('');
+  }
+  function withMix(pic, mix) {
+    if (!mix) return pic;
+    return { name: pic.name, art: pic.art.replace(/[^.]/g, ch => mix[KEYS.indexOf(ch)]), craze: true };
+  }
+  const crazeLabel = on => `🌈 Color Craze: ${on ? 'On' : 'Off'}`;
 
   // [{ id, name, color, score, last }] by when they joined
   function playerList(st) {
@@ -297,13 +316,21 @@
     b.onclick = () => startPractice(i);
     $('pick-grid').append(b);
   });
+  let crazePractice = store.get('froggy-craze') === '1';
+  function markPickCraze() {
+    $('pick-craze').textContent = crazeLabel(crazePractice);
+    $('pick-craze').classList.toggle('on', crazePractice);
+    $('pick-hint').textContent = crazePractice ? 'The picture will come in wild new colors!' : '';
+  }
+  $('pick-craze').onclick = () => { crazePractice = !crazePractice; store.set('froggy-craze', crazePractice ? '1' : '0'); markPickCraze(); };
   function showPicker() {
     practice = null;
+    markPickCraze();
     show('pick');
     for (const [i, b] of [...$('pick-grid').children].entries()) paintArt(b.firstChild, PICS[i].art);
   }
   function startPractice(n) {
-    practice = { pic: n, checked: false };
+    practice = { pic: n, checked: false, mix: crazePractice ? crazeMix(PICS[n]) : null };
     resetDrawing();
     show('play');
     renderPractice();
@@ -321,8 +348,8 @@
 
   // ── Practice ─────────────────────────────────────────────────────────────
   function renderPractice() {
-    const pic = PICS[practice.pic], pct = score(art.join(''), pic.art);
-    $('what').innerHTML = `Practice <small>· copy the ${esc(pic.name)}</small>`;
+    const pic = currentPic(), pct = score(art.join(''), pic.art);
+    $('what').innerHTML = `Practice${pic.craze ? ' 🌈' : ''} <small>· copy the ${esc(pic.name)}</small>`;
     $('timer').textContent = '';
     $('desk').hidden = practice.checked;
     $('results').hidden = !practice.checked;
@@ -360,7 +387,7 @@
         if (!(await ref.get()).exists()) break;
       }
       await ref.set({
-        host: myId, v: VERSION, created: firebase.database.ServerValue.TIMESTAMP, phase: 'lobby', rounds: 5, secs: 90,
+        host: myId, v: VERSION, created: firebase.database.ServerValue.TIMESTAMP, phase: 'lobby', rounds: 5, secs: 90, craze: false,
         players: { [myId]: { name, color: prefColor(), at: now(), score: 0 } },
       });
       ref.onDisconnect().remove();
@@ -475,6 +502,10 @@
       sel.disabled = !host;
       sel.onchange = () => room.ref.update({ [key]: Number(sel.value) });
     }
+    $('set-craze').textContent = crazeLabel(st.craze);
+    $('set-craze').classList.toggle('on', !!st.craze);
+    $('set-craze').disabled = !host;
+    $('set-craze').onclick = () => room.ref.update({ craze: !st.craze });
     $('btn-start').hidden = !host;
     $('btn-start').disabled = players.length < 2;
     const hostName = (players.find(p => p.id === st.host) || {}).name;
@@ -495,7 +526,8 @@
   // Host: the next round's room changes. Round numbers start at 1.
   function roundUpdate(st, n, order) {
     const t = now();
-    return { phase: 'draw', round: n, pic: order[n - 1], starts: t + COUNTDOWN, ends: t + COUNTDOWN + st.secs * 1000, art: null, done: null };
+    const pic = order[n - 1];
+    return { phase: 'draw', round: n, pic, mix: st.craze ? crazeMix(PICS[pic]) : null, starts: t + COUNTDOWN, ends: t + COUNTDOWN + st.secs * 1000, art: null, done: null };
   }
   $('btn-start').onclick = () => {
     const st = room.st, players = playerList(st);
@@ -510,7 +542,7 @@
   $('btn-lobby-leave').onclick = () => { leaveRoom(); show('menu'); };
 
   function endRound() {
-    const st = room.st, pic = PICS[st.pic].art, up = { phase: 'results', [`art/${myId}`]: art.join('') };
+    const st = room.st, pic = withMix(PICS[st.pic], st.mix).art, up = { phase: 'results', [`art/${myId}`]: art.join('') };
     room.ending = st.round;
     for (const p of playerList(st)) {
       const pct = score(p.id === myId ? art.join('') : (st.art && st.art[p.id]) || EMPTY, pic);
@@ -548,7 +580,7 @@
     }
     show('play');
     const pic = currentPic();
-    $('what').innerHTML = `Round ${st.round} of ${st.order.length} <small>· ${pic ? esc(pic.name) : 'get ready'}</small>`;
+    $('what').innerHTML = `Round ${st.round} of ${st.order.length}${st.mix ? ' 🌈' : ''} <small>· ${pic ? esc(pic.name) : 'get ready'}</small>`;
     $('desk').hidden = results;
     $('results').hidden = !results;
     $('btn-done').textContent = isDone() ? '✋ Not done' : '✅ Done';

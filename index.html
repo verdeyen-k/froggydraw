@@ -117,6 +117,11 @@
     #zoom canvas { width: min(90vw, 80vh); height: min(90vw, 80vh); border-radius: 8px; image-rendering: pixelated; }
     #zoom div { font-size: 22px; font-weight: 800; }
 
+    .toggle.on {
+      background: linear-gradient(90deg, #ff5252, #ff9f1a, #ffe14d, #5fd35f, #4d9dff, #b36bff);
+      border-color: transparent; color: #111; font-weight: 800;
+    }
+
     /* Practice picture picker */
     #pick { gap: 12px; }
     #pick h2 { font-size: 24px; text-align: center; }
@@ -161,6 +166,7 @@
   <div class="settings" id="lobby-settings">
     <label>Rounds <select id="set-rounds"></select></label>
     <label>Time <select id="set-secs"></select></label>
+    <button id="set-craze" class="toggle"></button>
   </div>
   <div class="hint" id="lobby-info"></div>
   <div class="col">
@@ -203,8 +209,10 @@
   <h2>What do you want to draw?</h2>
   <div class="row">
     <button id="btn-pick-random" class="primary">🎲 Surprise me</button>
+    <button id="pick-craze" class="toggle"></button>
     <button id="btn-pick-back">Back</button>
   </div>
+  <div class="hint" id="pick-hint"></div>
   <div id="pick-grid"></div>
 </div>
 
@@ -222,6 +230,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="pictures.js?v=2"></script>
-<script src="froggy.js?v=3"></script>
+<script src="froggy.js?v=4"></script>
 </body>
 </html>
