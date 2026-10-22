@@ -167,7 +167,7 @@
     const clips = {};
     function clip(name, fallback) {
       if (!clips[name]) {
-        clips[name] = fetch(`sounds/${name}.wav`).then(r => r.arrayBuffer())
+        clips[name] = fetch(`sounds/${name}.wav?v=2`).then(r => r.arrayBuffer())
           .then(b => new Promise((res, rej) => ac.decodeAudioData(b, res, rej)));
       }
       clips[name].then(buf => {
