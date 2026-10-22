@@ -206,7 +206,7 @@
       () => say('Ewww!', 1, 0.9),          // grossed out
       () => [0, 0.13, 0.26].forEach((at, i) => tone(300 + i * 80, 0.1, { to: 900 + i * 150, vol: 0.25, at })),  // aqua: blub blub blub
       () => say('Awww...', 0.9, 0.85),     // sad
-      () => { hiss(0, 0.8); kch(0.8); },    // dark sorcerer: hssss... KCHHHH
+      () => { hiss(0, 1.5); kch(0); },      // dark sorcerer: hiss and KCHHHH at the same time
       () => say('Ooh la la!', 1.1, 0.95),  // heart eyes
     ];
     const notes = [523, 587, 659, 698, 784, 880, 988, 1047];
