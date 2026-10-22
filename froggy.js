@@ -184,6 +184,38 @@
       burst(0, 0.035, 0.005, 1800, 1500, 0.8, 0.9);      // k
       burst(0.04, 1.7, 1.0, 5000, 3000, 1.2, 0.7);       // chhhhh
     }
+    // A sung "ooh la la": a buzzy tone shaped by filters at the vowel sounds of a voice (oo, l, a),
+    // with a little vibrato. Each step is [time, pitch, vowel]; the voice glides from one to the next.
+    function oohLaLa() {
+      const t = ac.currentTime;
+      const VOWELS = { oo: [320, 800, 2400], l: [380, 1150, 2500], a: [760, 1200, 2700] };
+      const steps = [[0, 620, 'oo'], [0.42, 880, 'oo'], [0.47, 660, 'l'], [0.53, 660, 'a'], [0.72, 660, 'a'],
+                     [0.76, 990, 'l'], [0.82, 990, 'a'], [1.25, 950, 'a']];
+      const o = ac.createOscillator(), vib = ac.createOscillator(), vibAmt = ac.createGain(), env = ac.createGain();
+      o.type = 'sawtooth';
+      vib.frequency.value = 5.5;
+      vibAmt.gain.value = 9;
+      vib.connect(vibAmt).connect(o.frequency);
+      const filters = [[1, 6], [0.55, 9], [0.25, 12]].map(([vol, q], k) => {
+        const f = ac.createBiquadFilter(), g = ac.createGain();
+        f.type = 'bandpass';
+        f.Q.value = q;
+        g.gain.value = vol;
+        o.connect(f).connect(g).connect(env);
+        steps.forEach(([at, , v], i) => f.frequency[i ? 'linearRampToValueAtTime' : 'setValueAtTime'](VOWELS[v][k], t + at));
+        return f;
+      });
+      steps.forEach(([at, hz], i) => o.frequency[i ? 'linearRampToValueAtTime' : 'setValueAtTime'](hz, t + at));
+      // loudness: swell in, dip on each "l", fade at the end
+      env.gain.setValueAtTime(0.0001, t);
+      for (const [at, v] of [[0.08, 1.6], [0.44, 1.6], [0.48, 0.5], [0.55, 1.6], [0.73, 1.5], [0.78, 0.6], [0.85, 3], [1.05, 2.8]]) {
+        env.gain.linearRampToValueAtTime(v, t + at);
+      }
+      env.gain.exponentialRampToValueAtTime(0.0001, t + 1.35);
+      env.connect(master);
+      for (const n of [o, vib]) { n.start(t); n.stop(t + 1.4); }
+      return filters;
+    }
     // Recorded sounds in sounds/, loaded the first time they're needed. `fallback` plays if one can't load.
     const clips = {};
     function clip(name, fallback) {
@@ -207,7 +239,7 @@
       () => [0, 0.13, 0.26].forEach((at, i) => tone(300 + i * 80, 0.1, { to: 900 + i * 150, vol: 0.25, at })),  // aqua: blub blub blub
       () => say('Awww...', 0.9, 0.85),     // sad
       () => { hiss(0, 1.5); kch(0); },      // dark sorcerer: hiss and KCHHHH at the same time
-      () => say('Ooh la la!', 1.1, 0.95),  // heart eyes
+      () => oohLaLa(),                     // heart eyes: a sung "ooh la la"
     ];
     const notes = [523, 587, 659, 698, 784, 880, 988, 1047];
     const sounds = {
