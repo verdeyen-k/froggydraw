@@ -18,7 +18,7 @@
 
   // Bump with the ?v= on the scripts in index.html whenever what goes in the room changes.
   // Devices on different versions can't play together, and phones can hang on to an old copy of the page.
-  const VERSION = 3;
+  const VERSION = 4;
   const OUTDATED = 'That room is using a different version of Froggy Draw. Everyone needs to refresh the page.';
   const ROOMS = 'froggydraw/rooms';
 

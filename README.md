@@ -12,7 +12,7 @@ Scoring for each round:
 Your round score is the percentage of points you got. The highest total after the last round wins.
 
 Pictures: pencil, buff frog, ruler, ice cream, snowball, flower, storm cloud, cloud, snowflake, donut, bouncy ball,
-Pac-Man, Pac-Man ghosts, cactus, spring tree, fall tree, winter tree, dog, cat, chicken, turtle, bread, diamond, CD, dino.
+Pac-Man, Pac-Man ghosts, cactus, spring tree, fall tree, winter tree, dog, cat, chicken, turtle, bread, diamond, CD, dino, pizza, rocket, shooting star, rainbow, hard hat.
 
 ## Playing
 
