@@ -18,7 +18,7 @@ Pac-Man, Pac-Man ghosts, cactus, spring tree, fall tree, winter tree.
 
 - **Create a room**, then friends join with the 4-letter code. Each player picks a color: red, orange, yellow,
   green, turquoise, blue, purple or pink. The host chooses the number of rounds and the time per round.
-- **Practice alone**: copy a random picture with no timer and check your score.
+- **Practice alone**: pick a picture (or 🎲 Surprise me) and copy it with no timer and check your score.
 - Tools: ✏️ pen (tap or drag), 🪣 fill, 🧽 eraser, ↩️ undo, 🗑️ clear. Press and hold the picture in the middle to see it bigger.
 - Tap ✅ Done when you're finished. The round ends when everyone is done or the time runs out.
 

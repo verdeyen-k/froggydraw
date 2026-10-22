@@ -287,11 +287,29 @@
   function busy(on) { for (const id of ['btn-create', 'btn-join', 'btn-practice']) $(id).disabled = on; }
   $('btn-practice').onclick = () => {
     $('menu-error').textContent = '';
-    practice = { pic: Math.floor(Math.random() * PICS.length), checked: false };
+    showPicker();
+  };
+
+  // Practice: choose which picture to copy.
+  PICS.forEach((pic, i) => {
+    const b = document.createElement('button');
+    b.innerHTML = `<canvas></canvas>${esc(pic.name)}`;
+    b.onclick = () => startPractice(i);
+    $('pick-grid').append(b);
+  });
+  function showPicker() {
+    practice = null;
+    show('pick');
+    for (const [i, b] of [...$('pick-grid').children].entries()) paintArt(b.firstChild, PICS[i].art);
+  }
+  function startPractice(n) {
+    practice = { pic: n, checked: false };
     resetDrawing();
     show('play');
     renderPractice();
-  };
+  }
+  $('btn-pick-random').onclick = () => startPractice(Math.floor(Math.random() * PICS.length));
+  $('btn-pick-back').onclick = () => show('menu');
   $('btn-create').onclick = () => { const n = myName(); if (n) createRoom(n); };
   $('btn-join').onclick = () => {
     const code = $('join-code').value.trim().toUpperCase(), n = myName();
@@ -312,7 +330,7 @@
     if (practice.checked) {
       $('results-title').textContent = `You scored ${pct}%`;
       $('results-list').innerHTML = '';
-      $('btn-next').textContent = 'Next picture';
+      $('btn-next').textContent = 'Pick another picture';
       $('btn-next').hidden = false;
       $('results-wait').innerHTML = '<button id="btn-fix">Keep fixing this one</button>';
       $('btn-fix').onclick = () => { practice.checked = false; renderPractice(); };
@@ -502,14 +520,7 @@
     room.ref.update(up);
   }
   $('btn-next').onclick = () => {
-    if (practice) {
-      let n;
-      do n = Math.floor(Math.random() * PICS.length); while (n === practice.pic && PICS.length > 1);
-      practice = { pic: n, checked: false };
-      resetDrawing();
-      renderPractice();
-      return;
-    }
+    if (practice) { showPicker(); return; }
     const st = room && room.st;
     if (!st || st.host !== myId || st.phase !== 'results') return;
     room.ref.update(st.round >= st.order.length ? { phase: 'over' } : roundUpdate(st, st.round + 1, st.order));

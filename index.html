@@ -117,6 +117,17 @@
     #zoom canvas { width: min(90vw, 80vh); height: min(90vw, 80vh); border-radius: 8px; image-rendering: pixelated; }
     #zoom div { font-size: 22px; font-weight: 800; }
 
+    /* Practice picture picker */
+    #pick { gap: 12px; }
+    #pick h2 { font-size: 24px; text-align: center; }
+    #pick-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px;
+      width: 100%; max-width: 760px;
+    }
+    #pick-grid button { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; font-size: 13px; font-weight: 700; }
+    #pick-grid canvas { width: 100%; aspect-ratio: 1; display: block; border-radius: 4px; image-rendering: pixelated; }
+    #pick .row { flex-wrap: wrap; justify-content: center; }
+
     /* Final */
     #over { gap: 14px; justify-content: center; }
     #over h1 { font-size: 34px; text-align: center; color: var(--accent); }
@@ -188,6 +199,15 @@
   <div id="zoom" class="overlay" hidden><div id="zoom-name"></div><canvas></canvas></div>
 </div>
 
+<div id="pick" class="screen" hidden>
+  <h2>What do you want to draw?</h2>
+  <div class="row">
+    <button id="btn-pick-random" class="primary">🎲 Surprise me</button>
+    <button id="btn-pick-back">Back</button>
+  </div>
+  <div id="pick-grid"></div>
+</div>
+
 <div id="over" class="screen" hidden>
   <h1 id="over-title"></h1>
   <ul class="plist" id="over-list"></ul>
@@ -202,6 +222,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="pictures.js?v=1"></script>
-<script src="froggy.js?v=1"></script>
+<script src="froggy.js?v=2"></script>
 </body>
 </html>
