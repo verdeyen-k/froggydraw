@@ -104,11 +104,26 @@
         o.stop(t + 0.14);
       }
     }
-    function say(text, pitch, rate) {  // words come from the device's own voice
+    // Words come from the device's own voices. Pick the most natural-sounding English one it has:
+    // Windows/Edge "Natural" voices, iPhone/Mac "Enhanced"/"Premium" ones, then Google's, then Samantha.
+    let voice = null;
+    function pickVoice() {
+      const sp = window.speechSynthesis, all = sp ? sp.getVoices().filter(v => /^en/i.test(v.lang)) : [];
+      const rank = v => [/natural/i, /premium|enhanced|neural/i, /google us english/i, /google uk english female/i, /samantha|aria|jenny|zira/i]
+        .findIndex(re => re.test(v.name));
+      const ranked = all.map(v => [rank(v), v]).filter(([r]) => r >= 0).sort((a, b) => a[0] - b[0]);
+      voice = (ranked[0] && ranked[0][1]) || all.find(v => /en[-_]US/i.test(v.lang) && v.localService) || all[0] || null;
+    }
+    if (window.speechSynthesis) {
+      pickVoice();
+      window.speechSynthesis.addEventListener && window.speechSynthesis.addEventListener('voiceschanged', pickVoice);
+    }
+    function say(text, pitch, rate) {
       const sp = window.speechSynthesis;
       if (!sp || !window.SpeechSynthesisUtterance) return;
       sp.cancel();
       const u = new SpeechSynthesisUtterance(text);
+      try { if (voice) { u.voice = voice; u.lang = voice.lang; } } catch {}
       u.pitch = pitch;
       u.rate = rate;
       u.volume = 1;
@@ -151,13 +166,13 @@
     // What each frog says when you pick it, in COLORS order.
     const frogVoices = [
       () => growl(),                       // angry: grrrr
-      () => say('Huh?', 1.4, 1),           // confused
-      () => say('Yay!', 1.9, 1.1),         // happy
-      () => say('Ewww!', 1.1, 0.7),        // grossed out
+      () => say('Huh?', 1.1, 1),           // confused
+      () => say('Yay!', 1.2, 1),           // happy
+      () => say('Ewww!', 1, 0.9),          // grossed out
       () => [0, 0.13, 0.26].forEach((at, i) => tone(300 + i * 80, 0.1, { to: 900 + i * 150, vol: 0.25, at })),  // aqua: blub blub blub
-      () => say('Awww.', 0.7, 0.6),        // sad
+      () => say('Awww...', 0.9, 0.85),     // sad
       () => hiss(),                        // dark sorcerer: hssss
-      () => say('Ooh la la!', 1.6, 0.9),   // heart eyes
+      () => say('Ooh la la!', 1.1, 0.95),  // heart eyes
     ];
     const notes = [523, 587, 659, 698, 784, 880, 988, 1047];
     const sounds = {
