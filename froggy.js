@@ -148,20 +148,26 @@
       o.connect(lp).connect(g).connect(master);
       for (const n of [o, lfo]) { n.start(t); n.stop(t + 0.8); }
     }
-    function hiss() {
-      const t = ac.currentTime, dur = 0.8, len = Math.ceil(ac.sampleRate * dur), buf = ac.createBuffer(1, len, ac.sampleRate);
+    function kch() {  // the sorcerer's sound: a sharp "k" crack, then a long "chhhhh" hiss that fades away
+      const t = ac.currentTime, len = Math.ceil(ac.sampleRate * 2), buf = ac.createBuffer(1, len, ac.sampleRate);
       const d = buf.getChannelData(0);
       for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-      const src = ac.createBufferSource(), hp = ac.createBiquadFilter(), g = ac.createGain();
-      src.buffer = buf;
-      hp.type = 'highpass';
-      hp.frequency.value = 3500;
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.25, t + 0.15);
-      g.gain.setValueAtTime(0.25, t + 0.55);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      src.connect(hp).connect(g).connect(master);
-      src.start(t);
+      const burst = (at, dur, hold, from, to, q, vol) => {
+        const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+        src.buffer = buf;
+        f.type = 'bandpass';
+        f.frequency.setValueAtTime(from, t + at);
+        f.frequency.exponentialRampToValueAtTime(to, t + at + dur);
+        f.Q.value = q;
+        g.gain.setValueAtTime(0.0001, t + at);
+        g.gain.exponentialRampToValueAtTime(vol, t + at + 0.004);
+        g.gain.setValueAtTime(vol, t + at + hold);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + at + dur);
+        src.connect(f).connect(g).connect(master);
+        src.start(t + at, 0, dur + 0.02);
+      };
+      burst(0, 0.035, 0.005, 1800, 1500, 0.8, 0.9);      // k
+      burst(0.04, 1.7, 1.0, 5000, 3000, 1.2, 0.7);       // chhhhh
     }
     // Recorded sounds in sounds/, loaded the first time they're needed. `fallback` plays if one can't load.
     const clips = {};
@@ -185,7 +191,7 @@
       () => say('Ewww!', 1, 0.9),          // grossed out
       () => [0, 0.13, 0.26].forEach((at, i) => tone(300 + i * 80, 0.1, { to: 900 + i * 150, vol: 0.25, at })),  // aqua: blub blub blub
       () => say('Awww...', 0.9, 0.85),     // sad
-      () => hiss(),                        // dark sorcerer: hssss
+      () => kch(),                         // dark sorcerer: kch!
       () => say('Ooh la la!', 1.1, 0.95),  // heart eyes
     ];
     const notes = [523, 587, 659, 698, 784, 880, 988, 1047];
