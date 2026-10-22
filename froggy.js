@@ -9,6 +9,8 @@
     { name: 'Purple', hex: '#b36bff' }, { name: 'Pink', hex: '#ff7ac8' },
   ];
   const MAX_PLAYERS = COLORS.length;
+  COLORS.forEach((c, i) => { c.frog = window.FROGGY_FROGS[i].name; });
+
   const ROUND_CHOICES = [3, 5, 8, 12, PICS.length], SECS_CHOICES = [45, 60, 90, 120, 180];
   const COUNTDOWN = 3000;  // ms of "3, 2, 1" before each round
   const GRACE = 1500;      // ms the host waits after time is up for everyone's last strokes to arrive
@@ -42,6 +44,24 @@
     set(k, v) { try { localStorage.setItem(k, v); } catch {} },
   };
   const esc = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
+
+  // Each player color has its own frog face, drawn once into an image.
+  const frogURLs = [];
+  function frogURL(i) {
+    if (frogURLs[i]) return frogURLs[i];
+    const cv = document.createElement('canvas'), ctx = cv.getContext('2d'), ink = window.FROGGY_FROG_INK;
+    cv.width = cv.height = N;
+    const hex = COLORS[i].hex, dark = '#' + [1, 3, 5].map(k => Math.floor(parseInt(hex.slice(k, k + 2), 16) / 2).toString(16).padStart(2, '0')).join('');
+    window.FROGGY_FROGS[i].rows.forEach((row, y) => [...row].forEach((ch, x) => {
+      if (ch === '.') return;
+      ctx.fillStyle = ch === 'B' ? hex : ch === 'D' || ch === 'M' ? dark : ink[ch];
+      ctx.fillRect(x, y, 1, 1);
+    }));
+    return (frogURLs[i] = cv.toDataURL());
+  }
+  const frogImg = (i, cls = 'frog') => `<img class="${cls}" src="${frogURL(i)}" alt="" title="${esc(COLORS[i].frog)} frog">`;
+  $('menu-frogs').innerHTML = COLORS.map((_, i) => frogImg(i, '')).join('');
+
   const myId = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
   // Same color in a spot the picture fills is worth 1, a different color there ½. Spots that are
@@ -265,7 +285,7 @@
       if (!p) return;
       if (p.id === myId) c.classList.add('me');
       c.style.background = COLORS[p.color].hex;
-      label.textContent = p.name + (opts.done && opts.done[p.id] ? ' ✓' : '');
+      label.innerHTML = frogImg(p.color) + esc(p.name) + (opts.done && opts.done[p.id] ? ' ✓' : '');
       paintArt(canvas, p.id === myId && !opts.results ? art.join('') : opts.art(p.id));
       if (opts.results && p.last != null) mark.textContent = `${p.last}%`;
     });
@@ -482,19 +502,20 @@
     const st = room.st, players = playerList(st), host = st.host === myId;
     show('lobby');
     $('lobby-code').textContent = room.code;
-    $('lobby-players').innerHTML = players.map(p => `<li><span class="dot" style="background:${COLORS[p.color].hex}"></span>`
+    $('lobby-players').innerHTML = players.map(p => `<li>${frogImg(p.color)}`
       + `${esc(p.name)}<span class="tag">${[p.id === st.host && 'host', p.id === myId && 'you'].filter(Boolean).join(' · ')}</span></li>`).join('');
     const mine = st.players[myId].color, taken = new Set(players.filter(p => p.id !== myId).map(p => p.color));
     $('lobby-colors').innerHTML = '';
     COLORS.forEach((c, i) => {
       const b = document.createElement('button');
-      b.style.background = c.hex;
-      b.title = c.name;
+      b.innerHTML = frogImg(i, '');
+      b.title = `${c.frog} frog`;
       b.className = i === mine ? 'mine' : '';
       b.disabled = taken.has(i);
       b.onclick = () => pickColor(i);
       $('lobby-colors').append(b);
     });
+    $('frog-name').textContent = `You're the ${COLORS[mine].frog} frog`;
     for (const [id, choices, key, unit] of [['set-rounds', ROUND_CHOICES, 'rounds', ''], ['set-secs', SECS_CHOICES, 'secs', ' s']]) {
       const sel = $(id);
       sel.innerHTML = choices.map(v => `<option value="${v}">${v === PICS.length && key === 'rounds' ? `${v} (every picture)` : v + unit}</option>`).join('');
@@ -589,7 +610,7 @@
       const last = st.round >= st.order.length, host = st.host === myId;
       $('results-title').textContent = `Round ${st.round} scores`;
       $('results-list').innerHTML = [...players].sort((a, b) => (b.score || 0) - (a.score || 0)).map(p =>
-        `<li><span class="dot" style="background:${COLORS[p.color].hex}"></span>${esc(p.name)}`
+        `<li>${frogImg(p.color)}${esc(p.name)}`
         + `<span class="tag">+${p.last || 0}</span><span class="pts">${p.score || 0}</span></li>`).join('');
       $('btn-next').hidden = !host;
       $('btn-next').textContent = last ? 'See who won' : 'Next round';
@@ -606,10 +627,11 @@
     const st = room.st, players = playerList(st).sort((a, b) => (b.score || 0) - (a.score || 0));
     show('over');
     const top = players[0].score || 0, winners = players.filter(p => (p.score || 0) === top);
+    $('over-frogs').innerHTML = winners.map(p => frogImg(p.color, '')).join('');
     $('over-title').textContent = winners.length > 1
-      ? `🐸 ${winners.map(p => p.name).join(' and ')} tie!` : `🐸 ${winners[0].name} wins!`;
+      ? `${winners.map(p => p.name).join(' and ')} tie!` : `${winners[0].name} wins!`;
     $('over-list').innerHTML = players.map((p, i) => `<li>${['🥇', '🥈', '🥉'][i] || ''}`
-      + `<span class="dot" style="background:${COLORS[p.color].hex}"></span>${esc(p.name)}<span class="pts">${p.score || 0}</span></li>`).join('');
+      + `${frogImg(p.color)}${esc(p.name)}<span class="pts">${p.score || 0}</span></li>`).join('');
     const host = st.host === myId;
     $('btn-again').hidden = !host;
     $('over-wait').textContent = host ? '' : 'The host can start another game.';
