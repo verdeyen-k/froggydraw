@@ -702,8 +702,30 @@
   const CHAT_KEEP = 40;  // older messages are deleted
   const withFrogs = text => esc(text).replace(/:([a-z]+):/g, (m, code) => {
     const i = FROG_CODES.indexOf(code);
-    return i < 0 ? m : frogImg(i, 'emo');
+    return i < 0 ? m : frogImg(i, 'emo').replace('alt=""', `alt=":${code}:"`);
   });
+  // A frog face copied out of the game pastes as a long "data:image/png;base64,…" picture address.
+  // Turn each one back into that frog's code by comparing its pixels with the frogs (another browser may
+  // write the same picture out differently), and drop any other pasted pictures.
+  function framePixels(img) {
+    const cv = document.createElement('canvas'), ctx = cv.getContext('2d');
+    cv.width = cv.height = N;
+    ctx.drawImage(img, 0, 0, N, N);
+    return ctx.getImageData(0, 0, N, N).data.join();
+  }
+  const loadImg = src => new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
+  let frogPixels = null;
+  async function unpasteFrogs(text) {
+    const urls = text.match(/data:image\/[a-z]+;base64,[A-Za-z0-9+/=]+/g);
+    if (!urls) return text;
+    frogPixels = frogPixels || await Promise.all(COLORS.map(async (_, i) => framePixels(await loadImg(frogURL(i)))));
+    for (const url of urls) {
+      const im = await loadImg(url), px = im && im.width === N && im.height === N ? framePixels(im) : null;
+      const i = px ? frogPixels.indexOf(px) : -1;
+      text = text.replace(url, i < 0 ? '' : `:${FROG_CODES[i]}:`);
+    }
+    return text;
+  }
   FROG_CODES.forEach((code, i) => {
     const b = document.createElement('button');
     b.innerHTML = frogImg(i, '');
@@ -724,6 +746,16 @@
     $('chat-preview').innerHTML = /:[a-z]+:/.test(v) ? withFrogs(v) : '';
   }
   $('chat-text').addEventListener('input', showPreview);
+  $('chat-text').addEventListener('paste', async e => {  // the box only holds 120 characters, too few for a picture address
+    const text = e.clipboardData && e.clipboardData.getData('text');
+    if (!text || !/data:image\//.test(text)) return;
+    e.preventDefault();
+    const inp = $('chat-text'), at = inp.selectionStart ?? inp.value.length, end = inp.selectionEnd ?? at;
+    const add = await unpasteFrogs(text);
+    inp.value = (inp.value.slice(0, at) + add + inp.value.slice(end)).slice(0, inp.maxLength);
+    inp.setSelectionRange(at + add.length, at + add.length);
+    showPreview();
+  });
   function sendChat() {
     const text = $('chat-text').value.trim().slice(0, 120), st = room && room.st;
     if (!text || !st || !st.players[myId]) return;
