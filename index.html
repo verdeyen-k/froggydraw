@@ -157,6 +157,20 @@
     /* Final */
     #over { gap: 14px; justify-content: center; }
     #over h1 { font-size: 34px; text-align: center; color: var(--accent); }
+
+    /* How to play */
+    #help { position: fixed; inset: 0; z-index: 10; background: #000b; display: flex; justify-content: center; overflow-y: auto;
+      padding: max(14px, env(safe-area-inset-top)) 12px max(14px, env(safe-area-inset-bottom)); }
+    #help .panel { background: var(--bg); border: 2px solid var(--border); border-radius: 16px; max-width: 480px; width: 100%;
+      padding: 18px 18px 22px; height: max-content; display: flex; flex-direction: column; gap: 12px; }
+    #help h2 { color: var(--frog); font-size: 26px; text-align: center; }
+    #help h3 { font-size: 17px; margin-top: 4px; }
+    #help p, #help li { color: #d6e4da; line-height: 1.5; font-size: 15px; }
+    #help ul { padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+    #help .frogs img { width: 30px; height: 30px; image-rendering: pixelated; }
+    #help .eg { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    #help .sw { display: inline-block; width: 16px; height: 16px; border-radius: 3px; vertical-align: -3px; border: 1px solid #0006; }
+    .help-btn { padding: 6px 10px; font-size: 14px; }
   </style>
 </head>
 <body>
@@ -173,6 +187,7 @@
       <button id="btn-join">Join</button>
     </div>
     <button id="btn-practice">Practice alone</button>
+    <button class="open-help">❓ How to play</button>
     <button class="sound" title="Sound on/off"></button>
     <div id="menu-error" class="error"></div>
   </div>
@@ -183,6 +198,7 @@
   <div class="hint">Room code</div>
   <div class="code" id="lobby-code"></div>
   <div class="hint">Friends open this page and join with the code.</div>
+  <button class="open-help help-btn">❓ How to play</button>
   <ul class="plist" id="lobby-players"></ul>
   <div class="chat">
     <ul id="chat-log"></ul>
@@ -239,6 +255,49 @@
   <div id="zoom" class="overlay" hidden><div id="zoom-name"></div><canvas></canvas></div>
 </div>
 
+<div id="help" hidden>
+  <div class="panel">
+    <h2>How to play</h2>
+    <p>Everyone copies the same picture as pixel art. The closer your copy, the more points you get!</p>
+
+    <h3>🐸 Getting started</h3>
+    <ul>
+      <li>Type your name and tap <b>Create a room</b>. You get a 4-letter code.</li>
+      <li>Friends open the game on their own phones or computers, type the code and tap <b>Join</b>. 2 to 8 players.</li>
+      <li>Everyone picks a frog. Each frog is a different color and mood:
+        <div class="frogs" id="help-frogs"></div></li>
+      <li>While you wait, chat! Tap a frog face under the chat to put it in your message.</li>
+      <li>The host picks how many rounds, how long each round is, and whether to play 🌈 Color Craze, then taps <b>Start</b>.</li>
+    </ul>
+
+    <h3>✏️ Drawing</h3>
+    <ul>
+      <li>The picture to copy is in the middle of the board. Everyone else's drawing shows around it as they draw.</li>
+      <li><b>Press and hold</b> the middle picture to see it bigger.</li>
+      <li>Your grid is under the board. The darker lines every 4 squares help you count where things go.</li>
+      <li>Tap a color, then tap or drag on your grid. <b>🪣 Fill</b> colors a whole area at once, and the <b>🧽</b> square erases.</li>
+      <li><b>↩️ Undo</b> takes back your last move. <b>🗑️ Clear</b> starts over (and Undo brings it back).</li>
+      <li>Tap <b>✅ Done</b> when you're finished. The round ends when everyone is done or the timer runs out.</li>
+    </ul>
+
+    <h3>⭐ Points</h3>
+    <ul>
+      <li>For every square of the picture: the <b>right color</b> in the right spot gets 1 point, and <b>any other color</b> there gets ½.</li>
+      <li>Coloring squares that should be empty costs you, so don't scribble!</li>
+      <li>Your score for the round is how much you got right, out of 100.</li>
+      <li>After the last round, the frog with the most points wins. 🏆</li>
+    </ul>
+
+    <h3>🌈 Color Craze</h3>
+    <p>Every color in the picture swaps for a different one, so the frog might be purple with orange eyes. Copy the crazy colors you see, not the normal ones!</p>
+
+    <h3>🎨 Practice alone</h3>
+    <p>Pick any picture (or 🎲 Surprise me), copy it with no timer, and tap <b>Check</b> to see your score.</p>
+
+    <button class="primary close-help">Got it!</button>
+  </div>
+</div>
+
 <div id="pick" class="screen" hidden>
   <h2>What do you want to draw?</h2>
   <div class="row">
@@ -266,6 +325,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="pictures.js?v=3"></script>
 <script src="frogs.js?v=1"></script>
-<script src="froggy.js?v=29"></script>
+<script src="froggy.js?v=30"></script>
 </body>
 </html>

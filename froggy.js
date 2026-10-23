@@ -151,6 +151,7 @@
       erase() { noise(0.06, { vol: 0.12, from: 2500, to: 1200 }); },
       fill() { noise(0.25, { vol: 0.12, from: 600, to: 3000 }); tone(300, 0.25, { to: 900, vol: 0.1 }); },
       pick() { tone(1200, 0.03, { type: 'square', vol: 0.05 }); },
+      click() { tone(700, 0.05, { to: 1000, type: 'triangle', vol: 0.12 }); },
       undo() { tone(700, 0.12, { to: 350, type: 'triangle', vol: 0.15 }); },
       clear() { noise(0.35, { vol: 0.2, from: 4000, to: 200 }); },
       count() { tone(660, 0.15, { type: 'square', vol: 0.12 }); },
@@ -183,6 +184,12 @@
     };
   })();
   document.addEventListener('pointerdown', () => sfx.wake(), true);
+  // Buttons click, unless they already make a sound of their own (paint colors, tools, frogs, Done, Send…).
+  const OWN_SOUND = '#palette button, #tools button, #lobby-colors button, #chat-frogs button, #chat-send, .sound';
+  document.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (b && !b.disabled && !b.matches(OWN_SOUND)) sfx.play('click');
+  }, true);
   function markSound() { for (const b of document.querySelectorAll('.sound')) b.textContent = sfx.muted ? '🔇' : '🔊'; }
   for (const b of document.querySelectorAll('.sound')) b.onclick = () => { sfx.toggle(); markSound(); };
   markSound();
@@ -205,6 +212,10 @@
   }
   const frogImg = (i, cls = 'frog') => `<img class="${cls}" src="${frogURL(i)}" alt="" title="${esc(COLORS[i].frog)} frog">`;
   $('menu-frogs').innerHTML = COLORS.map((_, i) => frogImg(i, '')).join('');
+  $('help-frogs').innerHTML = COLORS.map((_, i) => frogImg(i, '')).join(' ');
+  for (const b of document.querySelectorAll('.open-help')) b.onclick = () => { $('help').hidden = false; $('help').scrollTop = 0; };
+  for (const b of document.querySelectorAll('.close-help')) b.onclick = () => { $('help').hidden = true; };
+  $('help').addEventListener('click', e => { if (e.target === $('help')) $('help').hidden = true; });  // tap outside to close
 
   const myId = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
