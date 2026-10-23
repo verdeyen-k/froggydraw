@@ -201,7 +201,7 @@
     // What each frog says when you pick it, in COLORS order.
     const frogVoices = [
       () => clip('grrr', growl),           // angry: grrrr
-      () => say('Huh?', 1.1, 1),           // confused
+      () => clip('huh', () => say('Huh?', 1.1, 1)),  // confused
       () => say('Yay!', 1.2, 1),           // happy
       () => say('Ewww!', 1, 0.9),          // grossed out
       () => [0, 0.13, 0.26].forEach((at, i) => tone(300 + i * 80, 0.1, { to: 900 + i * 150, vol: 0.25, at })),  // aqua: blub blub blub
