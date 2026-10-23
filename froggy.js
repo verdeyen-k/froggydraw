@@ -693,6 +693,62 @@
     const hostName = (players.find(p => p.id === st.host) || {}).name;
     $('lobby-info').textContent = !host ? `Waiting for ${hostName} to start…`
       : players.length < 2 ? 'You need at least 2 players.' : `${players.length} players. Ready when you are!`;
+    renderChat(st);
+  }
+
+  // ── Waiting-room chat ────────────────────────────────────────────────────
+  // Frog emojis are typed as :angry:, :confused: and so on, and show as that frog's face.
+  const FROG_CODES = ['angry', 'confused', 'happy', 'grossed', 'aqua', 'sad', 'sorcerer', 'hearts'];
+  const CHAT_KEEP = 40;  // older messages are deleted
+  const withFrogs = text => esc(text).replace(/:([a-z]+):/g, (m, code) => {
+    const i = FROG_CODES.indexOf(code);
+    return i < 0 ? m : frogImg(i, 'emo');
+  });
+  FROG_CODES.forEach((code, i) => {
+    const b = document.createElement('button');
+    b.innerHTML = frogImg(i, '');
+    b.title = `${COLORS[i].frog} frog`;
+    b.onclick = () => {  // put the frog where the cursor is
+      const inp = $('chat-text'), at = inp.selectionStart ?? inp.value.length, add = `:${code}:`;
+      if (inp.value.length + add.length > inp.maxLength) return;
+      inp.value = inp.value.slice(0, at) + add + inp.value.slice(inp.selectionEnd ?? at);
+      inp.focus();
+      inp.setSelectionRange(at + add.length, at + add.length);
+      showPreview();
+      sfx.play('pick');
+    };
+    $('chat-frogs').append(b);
+  });
+  function showPreview() {
+    const v = $('chat-text').value;
+    $('chat-preview').innerHTML = /:[a-z]+:/.test(v) ? withFrogs(v) : '';
+  }
+  $('chat-text').addEventListener('input', showPreview);
+  function sendChat() {
+    const text = $('chat-text').value.trim().slice(0, 120), st = room && room.st;
+    if (!text || !st || !st.players[myId]) return;
+    const me = st.players[myId];
+    room.ref.child('chat').push({ id: myId, name: me.name, color: me.color, text, at: firebase.database.ServerValue.TIMESTAMP });
+    const old = Object.keys(st.chat || {}).sort();
+    for (const k of old.slice(0, Math.max(0, old.length + 1 - CHAT_KEEP))) room.ref.child(`chat/${k}`).remove();
+    $('chat-text').value = '';
+    showPreview();
+    sfx.play('pop');
+  }
+  $('chat-send').onclick = sendChat;
+  $('chat-text').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
+
+  function renderChat(st) {
+    const msgs = Object.entries(st.chat || {}).sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, m]) => ({ k, ...m }));
+    const log = $('chat-log'), atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 30;
+    // Messages can arrive out of order (your own shows up before one sent a moment earlier), so compare them all.
+    const keys = msgs.map(m => m.k).join();
+    if (keys === room.chatShown && log.children.length) return;  // nothing new to draw
+    if (room.chatShown != null && msgs.some(m => m.id !== myId && !room.chatShown.includes(m.k))) sfx.play('pop');
+    room.chatShown = keys;
+    log.innerHTML = msgs.length ? msgs.map(m => `<li>${frogImg(COLORS[m.color] ? m.color : 0, 'emo')} <b style="color:${(COLORS[m.color] || COLORS[0]).hex}">${esc(m.name)}</b>${withFrogs(m.text)}</li>`).join('')
+      : '<li class="empty">Say hi while you wait! Tap a frog to add it to your message.</li>';
+    if (atBottom || msgs.length && msgs[msgs.length - 1].id === myId) log.scrollTop = log.scrollHeight;
   }
 
   function pickColor(i) {

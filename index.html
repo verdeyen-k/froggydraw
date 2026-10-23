@@ -70,6 +70,20 @@
     #frog-name { color: var(--dim); font-size: 14px; min-height: 1.2em; }
     .settings { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
     .settings label { display: flex; align-items: center; gap: 6px; color: var(--dim); }
+    .chat { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 6px; }
+    #chat-log {
+      list-style: none; background: var(--surface); border-radius: 10px; padding: 8px 10px; height: 150px;
+      overflow-y: auto; display: flex; flex-direction: column; gap: 4px; font-size: 15px; user-select: text; -webkit-user-select: text;
+    }
+    #chat-log li { line-height: 1.35; overflow-wrap: anywhere; }
+    #chat-log li b { margin-right: 4px; }
+    #chat-log .empty { color: var(--dim); font-size: 13px; margin: auto; text-align: center; }
+    .emo { width: 22px; height: 22px; vertical-align: -5px; image-rendering: pixelated; }
+    #chat-frogs { display: flex; gap: 4px; justify-content: space-between; }
+    #chat-frogs button { flex: 1; padding: 3px; border-radius: 8px; }
+    #chat-frogs img { width: 100%; max-width: 28px; display: block; margin: auto; image-rendering: pixelated; }
+    .chat .row input { flex: 1; }
+    #chat-preview { min-height: 1.4em; font-size: 14px; color: var(--dim); overflow-wrap: anywhere; }
 
     /* Play */
     #play { padding-left: 8px; padding-right: 8px; gap: 8px; overflow: hidden; }
@@ -170,6 +184,15 @@
   <div class="code" id="lobby-code"></div>
   <div class="hint">Friends open this page and join with the code.</div>
   <ul class="plist" id="lobby-players"></ul>
+  <div class="chat">
+    <ul id="chat-log"></ul>
+    <div id="chat-frogs"></div>
+    <div class="row">
+      <input id="chat-text" maxlength="120" placeholder="Say something…" autocomplete="off" enterkeyhint="send">
+      <button id="chat-send">Send</button>
+    </div>
+    <div id="chat-preview"></div>
+  </div>
   <div class="hint">Pick your frog</div>
   <div class="swatches" id="lobby-colors"></div>
   <div id="frog-name"></div>
@@ -243,6 +266,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="pictures.js?v=3"></script>
 <script src="frogs.js?v=1"></script>
-<script src="froggy.js?v=26"></script>
+<script src="froggy.js?v=27"></script>
 </body>
 </html>
