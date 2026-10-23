@@ -104,110 +104,46 @@
         o.stop(t + 0.14);
       }
     }
-    // Words come from the device's own voices. Pick the most natural-sounding English one it has:
-    // Windows/Edge "Natural" voices, iPhone/Mac "Enhanced"/"Premium" ones, then Google's, then Samantha.
-    let voice = null;
-    function pickVoice() {
-      const sp = window.speechSynthesis, all = sp ? sp.getVoices().filter(v => /^en/i.test(v.lang)) : [];
-      const rank = v => [/natural/i, /premium|enhanced|neural/i, /google us english/i, /google uk english female/i, /samantha|aria|jenny|zira/i]
-        .findIndex(re => re.test(v.name));
-      const ranked = all.map(v => [rank(v), v]).filter(([r]) => r >= 0).sort((a, b) => a[0] - b[0]);
-      voice = (ranked[0] && ranked[0][1]) || all.find(v => /en[-_]US/i.test(v.lang) && v.localService) || all[0] || null;
-    }
-    if (window.speechSynthesis) {
-      pickVoice();
-      window.speechSynthesis.addEventListener && window.speechSynthesis.addEventListener('voiceschanged', pickVoice);
-    }
-    function say(text, pitch, rate) {
-      const sp = window.speechSynthesis;
-      if (!sp || !window.SpeechSynthesisUtterance) return;
-      sp.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      try { if (voice) { u.voice = voice; u.lang = voice.lang; } } catch {}
-      u.pitch = pitch;
-      u.rate = rate;
-      u.volume = 1;
-      sp.speak(u);
-    }
-    function growl() {  // a low rumbly sawtooth that wobbles: grrrr
-      const t = ac.currentTime, o = ac.createOscillator(), lp = ac.createBiquadFilter(), g = ac.createGain();
-      const lfo = ac.createOscillator(), depth = ac.createGain();
-      o.type = 'sawtooth';
-      o.frequency.setValueAtTime(85, t);
-      o.frequency.linearRampToValueAtTime(110, t + 0.3);
-      o.frequency.linearRampToValueAtTime(75, t + 0.7);
-      lp.type = 'lowpass';
-      lp.frequency.value = 700;
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.3, t + 0.05);
-      g.gain.setValueAtTime(0.3, t + 0.55);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.75);
-      lfo.frequency.value = 28;
-      depth.gain.value = 0.2;
-      lfo.connect(depth).connect(g.gain);
-      o.connect(lp).connect(g).connect(master);
-      for (const n of [o, lfo]) { n.start(t); n.stop(t + 0.8); }
-    }
-    function hiss(at = 0, dur = 0.8) {  // a snake-like "hssss" that swells up
-      const t = ac.currentTime + at, len = Math.ceil(ac.sampleRate * dur), buf = ac.createBuffer(1, len, ac.sampleRate);
-      const d = buf.getChannelData(0);
-      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-      const src = ac.createBufferSource(), hp = ac.createBiquadFilter(), g = ac.createGain();
-      src.buffer = buf;
-      hp.type = 'highpass';
-      hp.frequency.value = 3500;
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.08, t + 0.05);
-      g.gain.exponentialRampToValueAtTime(0.35, t + dur * 0.9);
-      g.gain.exponentialRampToValueAtTime(0.05, t + dur);
-      src.connect(hp).connect(g).connect(master);
-      src.start(t);
-    }
-    function kch(at = 0) {  // a sharp "k" crack, then a long "chhhhh" that fades away
-      const t = ac.currentTime + at, len = Math.ceil(ac.sampleRate * 2), buf = ac.createBuffer(1, len, ac.sampleRate);
-      const d = buf.getChannelData(0);
-      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-      const burst = (at, dur, hold, from, to, q, vol) => {
-        const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
-        src.buffer = buf;
-        f.type = 'bandpass';
-        f.frequency.setValueAtTime(from, t + at);
-        f.frequency.exponentialRampToValueAtTime(to, t + at + dur);
-        f.Q.value = q;
-        g.gain.setValueAtTime(0.0001, t + at);
-        g.gain.exponentialRampToValueAtTime(vol, t + at + 0.004);
-        g.gain.setValueAtTime(vol, t + at + hold);
-        g.gain.exponentialRampToValueAtTime(0.0001, t + at + dur);
-        src.connect(f).connect(g).connect(master);
-        src.start(t + at, 0, dur + 0.02);
-      };
-      burst(0, 0.035, 0.005, 1800, 1500, 0.8, 0.9);      // k
-      burst(0.04, 1.7, 1.0, 5000, 3000, 1.2, 0.7);       // chhhhh
-    }
-    // Recorded sounds in sounds/, loaded the first time they're needed. `fallback` plays if one can't load.
-    const clips = {};
-    function clip(name, fallback) {
-      if (!clips[name]) {
-        clips[name] = fetch(`sounds/${name}.wav?v=5`).then(r => r.arrayBuffer())
-          .then(b => new Promise((res, rej) => ac.decodeAudioData(b, res, rej)));
+    // A hum: a soft, round tone (like "mmm" with your mouth closed) with a little vibrato.
+    // Each note is [start, length, starting pitch, ending pitch] in seconds and Hz.
+    function hum(notes, { wobble = 4, wobbleSpeed = 5.5, vol = 0.35 } = {}) {
+      const t0 = ac.currentTime;
+      for (const [at, dur, from, to] of notes) {
+        const t = t0 + at, o = ac.createOscillator(), o2 = ac.createOscillator(), lp = ac.createBiquadFilter(), g = ac.createGain();
+        const vib = ac.createOscillator(), vibAmt = ac.createGain();
+        o.type = 'triangle';
+        o2.type = 'sine';
+        for (const [osc, mult] of [[o, 1], [o2, 2]]) {
+          osc.frequency.setValueAtTime(from * mult, t);
+          osc.frequency.exponentialRampToValueAtTime(to * mult, t + dur);
+        }
+        vib.frequency.value = wobbleSpeed;
+        vibAmt.gain.value = wobble;
+        vib.connect(vibAmt).connect(o.frequency);
+        const g2 = ac.createGain();
+        g2.gain.value = 0.25;
+        lp.type = 'lowpass';
+        lp.frequency.value = 900;
+        o.connect(lp);
+        o2.connect(g2).connect(lp);
+        lp.connect(g).connect(master);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(vol, t + 0.05);
+        g.gain.setValueAtTime(vol, t + Math.max(0.05, dur - 0.08));
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        for (const n of [o, o2, vib]) { n.start(t); n.stop(t + dur + 0.02); }
       }
-      clips[name].then(buf => {
-        const src = ac.createBufferSource();
-        src.buffer = buf;
-        src.connect(master);
-        src.start();
-      }).catch(() => { delete clips[name]; if (fallback) fallback(); });
     }
-    // What each frog says when you pick it, in COLORS order.
-    const frogVoices = [
-      () => clip('grrr', growl),           // angry: grrrr
-      () => clip('huh', () => say('Huh?', 1.1, 1)),  // confused
-      () => say('Yay!', 1.2, 1),           // happy
-      () => say('Ewww!', 1, 0.9),          // grossed out
-      () => [0, 0.13, 0.26].forEach((at, i) => tone(300 + i * 80, 0.1, { to: 900 + i * 150, vol: 0.25, at })),  // aqua: blub blub blub
-      () => say('Awww...', 0.9, 0.85),     // sad
-      () => { hiss(0, 1.5); kch(0); },      // dark sorcerer: hiss and KCHHHH at the same time
-      () => clip('oohlala', () => say('Ooh la la!', 1.1, 0.95)),  // heart eyes
+    // What each frog hums when you pick it, in COLORS order: each at its own pitch, in its own mood.
+    const frogHums = [
+      () => hum([[0, 0.18, 175, 165], [0.2, 0.4, 150, 105]], { wobble: 6, wobbleSpeed: 9 }),  // angry: low, grumbly "hm-HMPH"
+      () => hum([[0, 0.55, 250, 370]]),                                                       // confused: "hmm?" rising
+      () => hum([[0, 0.14, 392, 392], [0.17, 0.32, 523, 587]]),                               // happy: bouncy "hm-HM!"
+      () => hum([[0, 0.25, 300, 280], [0.27, 0.4, 260, 190]], { wobble: 10, wobbleSpeed: 12 }), // grossed out: queasy "mm-mmm"
+      () => hum([[0, 0.7, 340, 360]], { wobble: 30, wobbleSpeed: 9 }),                         // aqua: wavy, bubbly hum
+      () => hum([[0, 0.8, 300, 185]], { wobble: 3, wobbleSpeed: 4 }),                          // sad: slow, falling "hmmm"
+      () => hum([[0, 0.45, 110, 104], [0.45, 0.6, 104, 92]], { wobble: 2, vol: 0.45 }),        // dark sorcerer: deep, spooky hum
+      () => hum([[0, 0.22, 587, 587], [0.24, 0.5, 784, 659]], { wobble: 6 }),                  // heart eyes: sweet, high "mm-mmm"
     ];
     const notes = [523, 587, 659, 698, 784, 880, 988, 1047];
     const sounds = {
@@ -225,7 +161,7 @@
       undone() { tone(1320, 0.1, { vol: 0.15 }); tone(880, 0.15, { vol: 0.15, at: 0.08 }); },
       pop() { tone(500, 0.08, { to: 900, vol: 0.12 }); },
       ribbit(pitch) { croak(0, pitch); },
-      frog(i) { frogVoices[i](); },
+      frog(i) { frogHums[i](); },
       results() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.25, { type: 'triangle', vol: 0.18, at: i * 0.09 })); },
       win() {
         [523, 523, 523, 659, 784, 659, 784, 1047].forEach((f, i) => tone(f, i === 7 ? 0.6 : 0.16, { type: 'square', vol: 0.1, at: [0, .15, .3, .45, .6, .8, .95, 1.1][i] }));

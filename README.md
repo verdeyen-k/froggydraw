@@ -35,10 +35,3 @@ The host's device keeps the time and does the scoring, so the host should keep t
 - `frogs.js`: the eight player frogs.
 
 To run it locally, serve the folder with any static file server, for example `python3 -m http.server`.
-
-## Sounds
-
-Most sounds are made in the browser. `sounds/grrr.wav` (the angry frog) is a trimmed copy of
-["growl"](https://opengameart.org/content/growl) from OpenGameArt, released under CC0 (public domain).
-`sounds/oohlala.wav` (the heart-eyes frog) and `sounds/huh.wav` (the confused frog) were made with [Piper](https://github.com/rhasspy/piper) text-to-speech using the
-"kristin" voice, which is trained on public-domain LibriVox recordings. The "Huh" has its pitch bent upward so it sounds like a question.
