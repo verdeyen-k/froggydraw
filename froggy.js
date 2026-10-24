@@ -6,7 +6,8 @@
   const COLORS = [
     { name: 'Red', hex: '#ff5252' }, { name: 'Orange', hex: '#ff9f1a' }, { name: 'Yellow', hex: '#ffe14d' },
     { name: 'Green', hex: '#5fd35f' }, { name: 'Turquoise', hex: '#2ee6c8' }, { name: 'Blue', hex: '#4d9dff' },
-    { name: 'Purple', hex: '#b36bff' }, { name: 'Pink', hex: '#ff7ac8' },
+    { name: 'Purple', hex: '#b36bff' }, { name: 'Pink', hex: '#ff7ac8' }, { name: 'Maroon', hex: '#a3243b' },
+    { name: 'Grey', hex: '#9aa3ad' }, { name: 'Black', hex: '#3b3b4a', text: '#b3b3c8', label: '#fff' }, { name: 'White', hex: '#f4f4f8' },
   ];
   const MAX_PLAYERS = COLORS.length;
   COLORS.forEach((c, i) => { c.frog = window.FROGGY_FROGS[i].name; });
@@ -15,12 +16,15 @@
   const COUNTDOWN = 3000;  // ms of "3, 2, 1" before each round
   const GRACE = 1500;      // ms the host waits after time is up for everyone's last strokes to arrive
   const SEND_GAP = 300;    // ms between uploads of your drawing while you draw
-  // Board cells (0-8, row by row) around the picture in cell 4. You always sit at the bottom middle.
-  const SEATS = [7, 0, 1, 2, 3, 5, 6, 8];
+  // Where players sit around the picture, as [row, column]; you always sit first, at the bottom.
+  // Up to 8 players use a 3×3 board with the picture in the middle square; 9 to 12 use a 4×4 board
+  // with the picture across the middle four squares.
+  const SEATS3 = [[3, 2], [1, 1], [1, 2], [1, 3], [2, 1], [2, 3], [3, 1], [3, 3]];
+  const SEATS4 = [[4, 2], [1, 1], [1, 2], [1, 3], [1, 4], [2, 1], [2, 4], [3, 1], [3, 4], [4, 1], [4, 3], [4, 4]];
 
   // Bump with the ?v= on the scripts in index.html whenever what goes in the room changes.
   // Devices on different versions can't play together, and phones can hang on to an old copy of the page.
-  const VERSION = 4;
+  const VERSION = 5;
   const OUTDATED = 'That room is using a different version of Froggy Draw. Everyone needs to refresh the page.';
   const ROOMS = 'froggydraw/rooms';
 
@@ -144,6 +148,10 @@
       () => hum([[0, 0.8, 300, 185]], { wobble: 3, wobbleSpeed: 4 }),                          // sad: slow, falling "hmmm"
       () => hum([[0, 0.45, 110, 104], [0.45, 0.6, 104, 92]], { wobble: 2, vol: 0.45 }),        // dark sorcerer: deep, spooky hum
       () => hum([[0, 0.22, 587, 587], [0.24, 0.5, 784, 659]], { wobble: 6 }),                  // heart eyes: sweet, high "mm-mmm"
+      () => hum([[0, 0.12, 140, 132], [0.16, 0.12, 132, 124], [0.32, 0.35, 124, 88]], { wobble: 8, wobbleSpeed: 10, vol: 0.45 }),  // demon: evil "heh-heh-hehhh"
+      () => hum([[0, 0.1, 330, 330], [0.12, 0.1, 440, 440], [0.24, 0.1, 392, 392], [0.36, 0.25, 523, 523]], { wobble: 0 }),  // mechanic: beep-boop robot steps
+      () => hum([[0, 0.75, 210, 165]], { wobble: 25, wobbleSpeed: 14 }),                       // ink: low, gurgly glug
+      () => hum([[0, 0.9, 880, 988], [0.05, 0.85, 1319, 1480]], { wobble: 8, wobbleSpeed: 5, vol: 0.2 }),  // angel: high, heavenly "aaah"
     ];
     const notes = [523, 587, 659, 698, 784, 880, 988, 1047];
     const sounds = {
@@ -380,15 +388,16 @@
 
   // ── Board ────────────────────────────────────────────────────────────────
   const board = $('board');
-  for (let i = 0; i < 9; i++) {
+  const makeCell = () => {
     const c = document.createElement('div');
     c.className = 'cell';
     c.innerHTML = '<canvas></canvas><div class="mark"></div><div class="label"></div>';
     board.append(c);
-  }
-  const cells = [...board.children];
+    return c;
+  };
+  const targetCell = makeCell(), seatCells = SEATS4.map(makeCell);
   // Hold the picture to see it bigger.
-  cells[4].addEventListener('pointerdown', () => {
+  targetCell.addEventListener('pointerdown', () => {
     const pic = currentPic();
     if (!pic) return;
     $('zoom').hidden = false;
@@ -432,28 +441,30 @@
   }
 
   function renderBoard(players, opts) {
-    const seat = Array(9).fill(null), others = players.filter(p => p.id !== myId);
-    const me = players.find(p => p.id === myId);
-    if (me) seat[SEATS[0]] = me;
-    others.forEach((p, i) => { seat[SEATS[i + 1]] = p; });
-    cells.forEach((c, i) => {
+    const big = players.length > SEATS3.length, seats = big ? SEATS4 : SEATS3;
+    const me = players.find(p => p.id === myId), seated = [...(me ? [me] : []), ...players.filter(p => p.id !== myId)];
+    board.classList.toggle('big', big);
+    const pic = currentPic(), [tCanvas, tMark, tLabel] = targetCell.children;
+    targetCell.className = 'cell target';
+    targetCell.style.gridArea = big ? '2 / 2 / 4 / 4' : '2 / 2 / 3 / 3';
+    tMark.textContent = '';
+    tLabel.textContent = pic ? pic.name : '?';
+    paintArt(tCanvas, pic ? pic.art : EMPTY, true);
+    seatCells.forEach((c, i) => {
       const [canvas, mark, label] = c.children;
+      c.hidden = i >= seats.length;
+      if (c.hidden) return;
+      c.style.gridArea = `${seats[i][0]} / ${seats[i][1]}`;
       c.className = 'cell';
       c.style.background = '';
       mark.textContent = '';
-      if (i === 4) {
-        const pic = currentPic();
-        c.classList.add('target');
-        label.textContent = pic ? pic.name : '?';
-        paintArt(canvas, pic ? pic.art : EMPTY, true);
-        return;
-      }
-      const p = seat[i];
+      const p = seated[i];
       label.hidden = !p;
       canvas.hidden = !p;
       if (!p) return;
       if (p.id === myId) c.classList.add('me');
       c.style.background = COLORS[p.color].hex;
+      label.style.color = COLORS[p.color].label || '';
       label.innerHTML = frogImg(p.color) + esc(p.name) + (opts.done && opts.done[p.id] ? ' ✓' : '');
       paintArt(canvas, p.id === myId && !opts.results ? art.join('') : opts.art(p.id));
       if (opts.results && p.last != null) mark.textContent = `${p.last}%`;
@@ -595,7 +606,7 @@
     try {
       const st = await enterRoom(code, ref, true);
       const problem = !st || !st.host ? `There's no room ${code}.` : st.v !== VERSION ? OUTDATED
-        : playerList(st).length >= MAX_PLAYERS ? 'That room is full (8 players).' : null;
+        : playerList(st).length >= MAX_PLAYERS ? `That room is full (${MAX_PLAYERS} players).` : null;
       if (problem) throw new Error(problem);
       // A transaction, so two people joining at once can't both take the last seat or the same color.
       const res = await ref.child('players').transaction(cur => {
@@ -608,7 +619,7 @@
         cur[myId] = { name, color, at: now(), score: 0 };
         return cur;
       });
-      if (!res.committed) throw new Error('That room is full (8 players).');
+      if (!res.committed) throw new Error(`That room is full (${MAX_PLAYERS} players).`);
       for (const k of ['players', 'art', 'done']) ref.child(`${k}/${myId}`).onDisconnect().remove();
       room.joining = false;
       render();
@@ -709,7 +720,7 @@
 
   // ── Waiting-room chat ────────────────────────────────────────────────────
   // Frog emojis are typed as :angry:, :confused: and so on, and show as that frog's face.
-  const FROG_CODES = ['angry', 'confused', 'happy', 'grossed', 'aqua', 'sad', 'sorcerer', 'hearts'];
+  const FROG_CODES = ['angry', 'confused', 'happy', 'grossed', 'aqua', 'sad', 'sorcerer', 'hearts', 'demon', 'mechanic', 'ink', 'angel'];
   const CHAT_KEEP = 40;  // older messages are deleted
   const withFrogs = text => esc(text).replace(/:([a-z]+):/g, (m, code) => {
     const i = FROG_CODES.indexOf(code);
@@ -789,7 +800,7 @@
     if (keys === room.chatShown && log.children.length) return;  // nothing new to draw
     if (room.chatShown != null && msgs.some(m => m.id !== myId && !room.chatShown.includes(m.k))) sfx.play('pop');
     room.chatShown = keys;
-    log.innerHTML = msgs.length ? msgs.map(m => `<li>${frogImg(COLORS[m.color] ? m.color : 0, 'emo')} <b style="color:${(COLORS[m.color] || COLORS[0]).hex}">${esc(m.name)}</b>${withFrogs(m.text)}</li>`).join('')
+    log.innerHTML = msgs.length ? msgs.map(m => `<li>${frogImg(COLORS[m.color] ? m.color : 0, 'emo')} <b style="color:${(c => c.text || c.hex)(COLORS[m.color] || COLORS[0])}">${esc(m.name)}</b>${withFrogs(m.text)}</li>`).join('')
       : '<li class="empty">Say hi while you wait! Tap a frog to add it to your message.</li>';
     if (atBottom || msgs.length && msgs[msgs.length - 1].id === myId) log.scrollTop = log.scrollHeight;
   }

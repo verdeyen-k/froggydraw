@@ -79,8 +79,8 @@
     #chat-log li b { margin-right: 4px; }
     #chat-log .empty { color: var(--dim); font-size: 13px; margin: auto; text-align: center; }
     .emo { width: 22px; height: 22px; vertical-align: -5px; image-rendering: pixelated; }
-    #chat-frogs { display: flex; gap: 4px; justify-content: space-between; }
-    #chat-frogs button { flex: 1; padding: 3px; border-radius: 8px; }
+    #chat-frogs { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+    #chat-frogs button { padding: 3px; border-radius: 8px; }
     #chat-frogs img { width: 100%; max-width: 28px; display: block; margin: auto; image-rendering: pixelated; }
     .chat .row input { flex: 1; }
     #chat-preview { min-height: 1.4em; font-size: 14px; color: var(--dim); overflow-wrap: anywhere; }
@@ -96,6 +96,7 @@
     #stage { flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
     #stage.wide { flex-direction: row; }
     #board { display: grid; gap: 5px; grid-template-columns: 1fr 1.8fr 1fr; grid-template-rows: 1fr 1.8fr 1fr; flex: none; }
+    #board.big { grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); gap: 4px; }
     .cell {
       position: relative; border-radius: 7px; background: #ffffff10; overflow: hidden; padding: 3px;
       display: flex; flex-direction: column; gap: 2px; min-width: 0; min-height: 0;
@@ -191,7 +192,7 @@
     <button class="sound" title="Sound on/off"></button>
     <div id="menu-error" class="error"></div>
   </div>
-  <p class="rules">2 to 8 players, each on their own device. Same color in the right spot scores a point; the wrong color in the right spot scores half.</p>
+  <p class="rules">2 to 12 players, each on their own device. Same color in the right spot scores a point; the wrong color in the right spot scores half.</p>
 </div>
 
 <div id="lobby" class="screen" hidden>
@@ -263,7 +264,7 @@
     <h3>🐸 Getting started</h3>
     <ul>
       <li>Type your name and tap <b>Create a room</b>. You get a 4-letter code.</li>
-      <li>Friends open the game on their own phones or computers, type the code and tap <b>Join</b>. 2 to 8 players.</li>
+      <li>Friends open the game on their own phones or computers, type the code and tap <b>Join</b>. 2 to 12 players.</li>
       <li>Everyone picks a frog. Each frog is a different color and mood:
         <div class="frogs" id="help-frogs"></div></li>
       <li>While you wait, chat! Tap a frog face under the chat to put it in your message.</li>
@@ -272,7 +273,8 @@
 
     <h3>✏️ Drawing</h3>
     <ul>
-      <li>The picture to copy is in the middle of the board. Everyone else's drawing shows around it as they draw.</li>
+      <li>The picture to copy is in the middle of the board. Everyone else's drawing shows around it as they draw.
+        With 9 or more players the board gets bigger, and the picture fills the middle four squares.</li>
       <li><b>Press and hold</b> the middle picture to see it bigger.</li>
       <li>Your grid is under the board. The darker lines every 4 squares help you count where things go.</li>
       <li>Tap a color, then tap or drag on your grid. <b>🪣 Fill</b> colors a whole area at once, and the <b>🧽</b> square erases.</li>
@@ -324,7 +326,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="pictures.js?v=3"></script>
-<script src="frogs.js?v=1"></script>
-<script src="froggy.js?v=34"></script>
+<script src="frogs.js?v=2"></script>
+<script src="froggy.js?v=35"></script>
 </body>
 </html>
