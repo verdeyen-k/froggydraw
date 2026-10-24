@@ -11,7 +11,7 @@
   const MAX_PLAYERS = COLORS.length;
   COLORS.forEach((c, i) => { c.frog = window.FROGGY_FROGS[i].name; });
 
-  const ROUND_CHOICES = [3, 5, 8, 12, PICS.length], SECS_CHOICES = [45, 60, 90, 120, 180];
+  const ROUND_CHOICES = [3, 5, 8, 12, PICS.length], SECS_CHOICES = [20, 45, 60, 90, 120, 180];
   const COUNTDOWN = 3000;  // ms of "3, 2, 1" before each round
   const GRACE = 1500;      // ms the host waits after time is up for everyone's last strokes to arrive
   const SEND_GAP = 300;    // ms between uploads of your drawing while you draw
